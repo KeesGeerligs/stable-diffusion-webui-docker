@@ -25,32 +25,40 @@ RUN --mount=type=cache,target=/var/cache/apt \
   # extensions needs those
   ffmpeg libglfw3-dev libgles2-mesa-dev pkg-config libcairo2 libcairo2-dev build-essential
 
-
+# Set up stable-diffusion-webui
 WORKDIR /
 RUN --mount=type=cache,target=/root/.cache/pip \
-  git clone https://github.com/AUTOMATIC1111/stable-diffusion-webui.git && \
-  cd stable-diffusion-webui && \
-  git reset --hard v1.9.4 && \
-  pip install -r requirements_versions.txt
+    git clone https://github.com/AUTOMATIC1111/stable-diffusion-webui.git && \
+    cd stable-diffusion-webui && \
+    git reset --hard v1.9.4 && \
+    pip install -r requirements_versions.txt
 
-
+# Set environment variable
 ENV ROOT=/stable-diffusion-webui
 
+# Copy repositories and set up interrogate
 COPY --from=download /repositories/ ${ROOT}/repositories/
-RUN mkdir ${ROOT}/interrogate && cp ${ROOT}/repositories/clip-interrogator/clip_interrogator/data/* ${ROOT}/interrogate
+RUN mkdir ${ROOT}/interrogate && \
+    cp ${ROOT}/repositories/clip-interrogator/clip_interrogator/data/* ${ROOT}/interrogate
 
+# Install additional dependencies
 RUN --mount=type=cache,target=/root/.cache/pip \
-  pip install pyngrok xformers==0.0.26.post1 \
-  git+https://github.com/TencentARC/GFPGAN.git@8d2447a2d918f8eba5a4a01463fd48e45126a379 \
-  git+https://github.com/openai/CLIP.git@d50d76daa670286dd6cacf3bcd80b5e4823fc8e1 \
-  git+https://github.com/mlfoundations/open_clip.git@v2.20.0
+    pip install pyngrok xformers==0.0.26.post1 \
+    git+https://github.com/TencentARC/GFPGAN.git@8d2447a2d918f8eba5a4a01463fd48e45126a379 \
+    git+https://github.com/openai/CLIP.git@d50d76daa670286dd6cacf3bcd80b5e4823fc8e1 \
+    git+https://github.com/mlfoundations/open_clip.git@v2.20.0
 
-# there seems to be a memory leak (or maybe just memory not being freed fast enough) that is fixed by this version of malloc
-# maybe move this up to the dependencies list.
-RUN apt-get -y install libgoogle-perftools-dev && apt-get clean
+# Install and set up tcmalloc to address potential memory issues
+RUN apt-get update && \
+    apt-get install -y libgoogle-perftools-dev && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
 ENV LD_PRELOAD=libtcmalloc.so
 
+# Copy docker-specific files
 COPY . /docker
+
+
 
 RUN \
   # mv ${ROOT}/style.css ${ROOT}/user.css && \
