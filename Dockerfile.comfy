@@ -1,0 +1,38 @@
+# Use the PyTorch image as the base
+FROM pytorch/pytorch:2.3.0-cuda12.1-cudnn8-runtime
+
+# Set environment variables
+ENV DEBIAN_FRONTEND=noninteractive
+ENV PIP_PREFER_BINARY=1
+ENV ROOT=/comfyui
+ENV NVIDIA_VISIBLE_DEVICES=all
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    git \
+    ffmpeg \
+    libgl1-mesa-dev \
+    libglib2.0-0 \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+# Set up ComfyUI
+WORKDIR /
+RUN git clone https://github.com/comfyanonymous/ComfyUI.git ${ROOT} && \
+    cd ${ROOT} && \
+    git checkout master && \
+    git reset --hard 276f8fce9f5a80b500947fb5745a4dde9e84622d && \
+    pip install -r requirements.txt
+
+# Copy the v1-5-pruned-emaonly.ckpt model
+COPY v1-5-pruned-emaonly.ckpt ${ROOT}/models/checkpoints/v1-5-pruned-emaonly.ckpt
+
+# Set working directory
+WORKDIR ${ROOT}
+
+# Expose port
+EXPOSE 7860
+
+# Set entrypoint and default command
+ENTRYPOINT ["python", "-u", "main.py"]
+CMD ["--listen", "--port", "7860"]
